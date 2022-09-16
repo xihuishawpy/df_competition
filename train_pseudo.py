@@ -104,35 +104,37 @@ if __name__ == '__main__':
     y = train_df['label']
     test = test_df
 
-    # gbc = GradientBoostingClassifier()
-    # gbc_test_preds = model_train(gbc, "GradientBoostingClassifier", 60)
-    # print(gbc)
+    # pseudo label
+    X_train, X_val, y_train, y_val = train_test_split(train, y, test_size=0.2, random_state=2)
+    # tuned_parameters = [{'n_estimators': range(100, 300, 500),
+    #                      'max_depth': range(4, 8, 12),
+    #                      'learning_rate': [0.01, 0.1]
+    #                      }]
+
+    # clf = GridSearchCV(GradientBoostingClassifier(), tuned_parameters, cv=5, scoring='roc_auc')
+    clf = GradientBoostingClassifier()
+    clf.fit(X_train, y_train)
+
+    predictions = clf.predict_proba(X_val)
+    pre = predictions[:, 1]
+    val_auc = roc_auc_score(y_val, pre)  # 验证集上的auc值
+    print(val_auc)
+
+    pseudo_preds = clf.predict(no_label_df[feature_columns])
+    # pseudo_preds = pseudo_preds[:, 1]
+    no_label_df['label'] = pseudo_preds
+    train = train.append(no_label_df.iloc[:,1:-1]).reset_index()
+    y = pd.Series(np.append(y,pseudo_preds))
+
+    gbc = GradientBoostingClassifier()
+    gbc_test_preds = model_train(gbc, "GradientBoostingClassifier", 60)
+    print(gbc)
 
     # 剔除噪声数据 KFold=50~59，auc在0.5左右
     train = train[:50000]
     y = y[:50000]
 
-    # # pseudo label
-    # X_train, X_val, y_train, y_val = train_test_split(train, y, test_size=0.2, random_state=2)
-    # # tuned_parameters = [{'n_estimators': range(100, 300, 500),
-    # #                      'max_depth': range(4, 8, 12),
-    # #                      'learning_rate': [0.01, 0.1]
-    # #                      }]
-    #
-    # # clf = GridSearchCV(GradientBoostingClassifier(), tuned_parameters, cv=5, scoring='roc_auc')
-    # clf = GradientBoostingClassifier()
-    # clf.fit(X_train, y_train)
-    #
-    # predictions = clf.predict_proba(X_val)
-    # pre = predictions[:, 1]
-    # val_auc = roc_auc_score(y_val, pre)  # 验证集上的auc值
-    # print(val_auc)
-    #
-    # pseudo_preds = clf.predict(no_label_df[feature_columns])
-    # # pseudo_preds = pseudo_preds[:, 1]
-    # no_label_df['label'] = pseudo_preds
-    # train = train.append(no_label_df.iloc[:,1:-1]).reset_index()
-    # y = pd.Series(np.append(y,pseudo_preds))
+
 
 
     # 模型训练
@@ -189,7 +191,7 @@ if __name__ == '__main__':
 
     # 提交结果
     test['label'] = predictions_lgb
-    test[['id', 'label']].to_csv('sub1.csv', index=False)
+    test[['id', 'label']].to_csv('sub2.csv', index=False)
 
 
 
